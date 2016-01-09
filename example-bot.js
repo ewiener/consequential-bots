@@ -1,7 +1,7 @@
 /*
  * Example bot, based on Botkit sample bot.
  *
- * Copy this file to create your own bot. Replace YOUR_BOT_NAME below with your bot's name.
+ * Copy this file to create your own bot. Replace <YOUR_BOT_NAME> and <your_bot_name> below with your bot's name.
  * Add the following to .env in this directory:
  *   SLACK_TOKEN_YOUR_BOT_NAME=<your_bot_slack_token>
  */
@@ -13,12 +13,12 @@ var path = require('path');
 var util = require('./lib/util');
 
 var controller = botkit.slackbot({
-  json_file_store: './storage/YOUR_BOT_NAME',
+  json_file_store: './storage/<your_bot_name>',
   debug: false,
 });
 
 var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN_YOUR_BOT_NAME
+  token: process.env.SLACK_TOKEN_<YOUR_BOT_NAME>
 }).startRTM();
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
