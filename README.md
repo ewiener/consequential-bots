@@ -1,6 +1,6 @@
-# A Playground for Slack Bots
+# Let's Play with Botkit
 
-Let's play with [Botkit](https://github.com/howdyai/botkit).
+This is a repo for experimenting with Slackbots using the [Botkit](https://github.com/howdyai/botkit) Node.js framework. Botkit is to Slack as Express is to the web.
 
 ## Installation
 
@@ -12,7 +12,7 @@ git clone git@github.com:ewiener/consequential-bots.git
 
 1) Install the consequential-bots repo.
 
-2) Install botkit and other node packages. From within consequential-bots, run:
+2) Install botkit and other node dependencies defined in package.json. From within consequential-bots, run:
 
 ```
 npm install
@@ -22,7 +22,7 @@ npm install
 
 https://consequential.slack.com/services/new/bot
 
-Enter a name for your bot, let's say Steve. Per the Botkit documentation, avoid a single task specific name.
+Enter a name for your bot, let's say Steve. As the Botkit documentation says, avoid a single task specific name.
 
 4) After you click "Add Bot Integration", copy the API token that Slack gives you.
 
@@ -55,8 +55,8 @@ Try:
 
 9) Note: Your bot uses ./storage/steve to remember things.
 
-10) See the [Botkit](https://github.com/howdyai/botkit) documentation for much more.
+10) See the [Botkit documentation](https://github.com/howdyai/botkit) for much more.
 
 ## What's Next
 
-1) Deploy to heroku (or something) to keep the bots alive.
+1) Deploy to heroku to keep the bots alive.
