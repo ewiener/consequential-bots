@@ -10,9 +10,9 @@ git clone git@github.com:ewiener/consequential-bots.git
 
 ## Getting Started
 
-1) Install the consequential-bots repo
+1) Install the consequential-bots repo.
 
-2) Install botkit and other node packages
+2) Install botkit and other node packages. From within consequential-bots, run:
 
 ```
 npm install
