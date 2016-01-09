@@ -9,7 +9,6 @@
 var botkit = require('botkit');
 var dotenv = require('dotenv').load();
 var os = require('os');
-var path = require('path');
 var util = require('./lib/util');
 
 var controller = botkit.slackbot({
@@ -20,6 +19,8 @@ var controller = botkit.slackbot({
 var bot = controller.spawn({
   token: process.env.SLACK_TOKEN_<YOUR_BOT_NAME>
 }).startRTM();
+
+/* Start bot routes */
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
   bot.api.reactions.add({
@@ -39,7 +40,8 @@ controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function
       bot.reply(message,"Hello.");
     }
   });
-})
+});
+
 
 controller.hears(['call me (.*)'],'direct_message,direct_mention,mention',function(bot,message) {
   var matches = message.text.match(/call me (.*)/i);
@@ -57,8 +59,8 @@ controller.hears(['call me (.*)'],'direct_message,direct_mention,mention',functi
   })
 });
 
-controller.hears(['what is my name','who am i'],'direct_message,direct_mention,mention',function(bot,message) {
 
+controller.hears(['what is my name','who am i'],'direct_message,direct_mention,mention',function(bot,message) {
   controller.storage.users.get(message.user,function(err,user) {
     if (user && user.name) {
       bot.reply(message,"Your name is " + user.name);
@@ -70,7 +72,6 @@ controller.hears(['what is my name','who am i'],'direct_message,direct_mention,m
 
 
 controller.hears(['shutdown'],'direct_message,direct_mention,mention',function(bot,message) {
-
   bot.startConversation(message,function(err,convo) {
     convo.ask("Are you sure you want me to shutdown?",[
       {
@@ -93,16 +94,12 @@ controller.hears(['shutdown'],'direct_message,direct_mention,mention',function(b
       }
     ])
   })
-})
+});
 
 
 controller.hears(['uptime','identify yourself','who are you','what is your name'],'direct_message,direct_mention,mention',function(bot,message) {
-
   var hostname = os.hostname();
   var uptime = util.formatUptime(process.uptime());
 
   bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name +'>. I have been running for ' + uptime + ' on ' + hostname + ".");
-
-})
-
-
+});
