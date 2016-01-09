@@ -1,24 +1,24 @@
-
 /*
- * Mac 'n' Cheese bot.
+ * Example bot, based on Botkit sample bot.
  *
- * Initially based on Botkit sample bot.
+ * Copy this file to create your own bot. Replace YOUR_BOT_NAME below with your bot's name.
+ * Add the following to .env in this directory:
+ *   SLACK_TOKEN_YOUR_BOT_NAME=<your_bot_slack_token>
  */
 
 var botkit = require('botkit');
 var dotenv = require('dotenv').load();
-var weather = require('weather-js');
 var os = require('os');
 var path = require('path');
 var util = require('./lib/util');
 
 var controller = botkit.slackbot({
-  json_file_store: './storage/macncheese',
+  json_file_store: './storage/YOUR_BOT_NAME',
   debug: false,
 });
 
 var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN_MACNCHEESE
+  token: process.env.SLACK_TOKEN_YOUR_BOT_NAME
 }).startRTM();
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
@@ -40,23 +40,6 @@ controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function
     }
   });
 })
-
-controller.hears(['what is your favorite color'],'direct_message,direct_mention,mention',function(bot,message) {
-  bot.reply(message,"pink");
-});
-
-controller.hears(['what time is it'],'direct_message,direct_mention,mention',function(bot,message) {
-  var now = new Date();
-  bot.reply(message,now.getHours() + ":" + now.getMinutes());
-});
-
-controller.hears(['weather'],'direct_message,direct_mention,mention,ambient',function(bot,message) {
-  weather.find({search: 'San Francisco, CA', degreeType: 'F'}, function(err, result) {
-    var current = result[0].current;
-    var today = result[0].forecast[0];
-    bot.reply(message, "Currently " + current.temperature + ", forecast " + today.skytextday + " with high of " + today.high + " today");
-  });
-});
 
 controller.hears(['call me (.*)'],'direct_message,direct_mention,mention',function(bot,message) {
   var matches = message.text.match(/call me (.*)/i);
