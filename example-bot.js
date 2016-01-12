@@ -11,13 +11,15 @@ var dotenv = require('dotenv').load();
 var os = require('os');
 var util = require('./lib/util');
 
+var BOTNAME = 'example';
+
 var controller = botkit.slackbot({
-  json_file_store: './storage/<your_bot_name>',
+  json_file_store: './storage/' + BOTNAME,
   debug: false,
 });
 
 var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN_<YOUR_BOT_NAME>
+  token: process.env['SLACK_TOKEN_' + BOTNAME.toUpperCase()]
 }).startRTM();
 
 /* Start bot routes */

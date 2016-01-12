@@ -1,5 +1,5 @@
 /*
- * Mac 'n' Cheese bot.
+ * @macncheese bot.
  *
  * Initially based on Botkit sample bot.
  */
@@ -10,13 +10,15 @@ var weather = require('weather-js');
 var os = require('os');
 var util = require('./lib/util');
 
+var BOTNAME = 'macncheese';
+
 var controller = botkit.slackbot({
-  json_file_store: './storage/macncheese',
+  json_file_store: './storage/' + BOTNAME,
   debug: false,
 });
 
 var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN_MACNCHEESE
+  token: process.env['SLACK_TOKEN_' + BOTNAME.toUpperCase()]
 }).startRTM();
 
 /* Start bot routes */
@@ -54,11 +56,26 @@ controller.hears(['what time is it'],'direct_message,direct_mention,mention',fun
 
 
 controller.hears(['weather'],'direct_message,direct_mention,mention,ambient',function(bot,message) {
-  weather.find({search: 'San Francisco, CA', degreeType: 'F'}, function(err, result) {
-    var current = result[0].current;
-    var today = result[0].forecast[0];
-    bot.reply(message, "Currently " + current.temperature + ", forecast " + today.skytextday + " with high of " + today.high + " today");
-  });
+  var match = message.text.match(/weather in (.+)/i);
+  if (match) {
+    // location provided, use and save it
+    sayWeather(bot, message, match[1], true);
+  } else {
+    match = message.text.match(/weather here/i);
+    if (match) {
+      // ask location, use and save it
+      askWeatherLocation(bot, message);
+    } else {
+      // location not provided, try looking up last saved location
+      controller.storage.users.get(message.user,function(err,user) {
+        if (user && user.weather_location) {
+          sayWeather(bot, message, user.weather_location, false);
+        } else {
+          askWeatherLocation(bot, message);
+        }
+      });
+    }
+  }
 });
 
 
@@ -123,4 +140,50 @@ controller.hears(['uptime','identify yourself','who are you','what is your name'
   bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name +'>. I have been running for ' + uptime + ' on ' + hostname + ".");
 });
 
+/* Helper functions. TODO: Move into a separate file. */
+
+function ask(bot, message, question, replyCallback)
+{
+  bot.startConversation(message, function(err, convo) {
+    convo.ask(question, function(response, convo) {
+      replyCallback(response, convo);
+      convo.next();
+    });
+  });
+}
+
+function sayWeather(bot, message, location, saveLocation)
+{
+  if (saveLocation) {
+    controller.storage.users.get(message.user,function(err,user) {
+      if (!user) {
+        user = {
+          id: message.user,
+        }
+      }
+      user.weather_location = location;
+      controller.storage.users.save(user);
+    });
+  }
+  weather.find({search: location, degreeType: 'F'}, function(err, result) {
+    if (result && result.length > 0) {
+      var location = result[0].location;
+      var current = result[0].current;
+      var today = result[0].forecast[0];
+      var tomorrow = result[0].forecast[1];
+      var todayPrecip = today.precip || "0";
+      var tomorrowPrecip = tomorrow.precip || "0";
+      bot.reply(message, "Currently " + current.temperature + "° in " + location.name + ", forecast " + today.skytextday + " with high of " + today.high + "° and " + todayPrecip + "% chance of rain today. Tomorrow " + tomorrow.skytextday + " with high of " + tomorrow.high + "° and " + tomorrowPrecip + "% chance of rain.");
+    } else {
+      bot.reply(message, "I couldn't get the weather for " + location);
+    }
+  });
+}
+
+function askWeatherLocation(bot, message)
+{
+  ask(bot, message, "Where are you?", function(response, convo) {
+    sayWeather(bot, response, response.text, true);
+  });
+}
 
