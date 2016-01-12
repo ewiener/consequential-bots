@@ -59,6 +59,18 @@ Try:
 
 10) See the [Botkit documentation](https://github.com/howdyai/botkit) for much more.
 
+## Bots
+
+### @macncheese
+
+I know about:
+
+1) The weather
+
+  - "weather in cityname"
+  - "weather" (I'll use the last location)
+  - "weather here" (I'll ask where you are)
+
 ## What's Next
 
 1) Deploy to heroku to keep the bots alive.
