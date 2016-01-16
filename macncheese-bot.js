@@ -9,6 +9,7 @@ var dotenv = require('dotenv').load();
 var weather = require('weather-js');
 var os = require('os');
 var util = require('./lib/util');
+var extend = require('extend');
 
 var BOTNAME = 'macncheese';
 
@@ -21,7 +22,9 @@ var bot = controller.spawn({
   token: process.env['SLACK_TOKEN_' + BOTNAME.toUpperCase()]
 }).startRTM();
 
-/* Start bot routes */
+/***
+ *** Start bot routes
+ ***/
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
   bot.api.reactions.add({
@@ -51,31 +54,149 @@ controller.hears(['what is your favorite color'],'direct_message,direct_mention,
 
 controller.hears(['what time is it'],'direct_message,direct_mention,mention',function(bot,message) {
   var now = new Date();
-  bot.reply(message,now.getHours() + ":" + now.getMinutes());
+  bot.reply(message, now.getHours() + ":" + now.getMinutes());
 });
 
 
-controller.hears(['weather'],'direct_message,direct_mention,mention,ambient',function(bot,message) {
+/*
+ * Get current or another location
+ */
+controller.hears(['where is .+','where am i'], 'direct_message,direct_mention,mention', function(bot, message) {
+  var locationName = null;
+
+  var match = message.text.match(/where is (\w+)/i);
+  if (match) {
+    locationName = match[1];
+  } else if (message.text.match(/where am i/i)) {
+    locationName = 'current';
+  }
+
+  withLocation(controller, bot, message, locationName,
+    function(location) {
+      bot.reply(message, location);
+    },
+    function() {
+      bot.reply(message, "Good question.");
+      askLocationAndSayOk(controller, bot, message, locationName);
+  });
+});
+
+/*
+ * Set current location
+ */
+controller.hears(['i am (in|at) .+'], 'direct_message,direct_mention', function(bot, message) {
+  // explicit location? e.g. i'm in San Francisco
+  var match = message.text.match(/i am in (.+)/i);
+  if (match) {
+    saveLocation(controller, message.user, 'current', match[1], function(err) {
+      bot.reply(message, "Ok");
+    });
+    return;
+  }
+
+  var locationName = null;
+
+  // set and save current location?
+  match = message.text.match(/i am here/i);
+  if (match) {
+    askLocationAndSayOk(controller, bot, message, 'current');
+    return;
+  }
+
+  // named location? e.g. i'm at work
+  match = message.text.match(/i am at (\w+)/i);
+  if (match) {
+    var locationName = match[1];
+    withLocation(controller, bot, message, locationName,
+      function(location) {
+        saveLocation(controller, message.user, 'current', location, function(err) {
+          bot.reply(message, "Ok, you're in " + location);
+        });
+      },
+      function() {
+        askLocationAndSayOk(controller, bot, message, locationName);
+    });
+  }
+});
+
+/*
+ * Set another location
+ */
+controller.hears(['.+ is (in|at) .+','.+ is here'], 'direct_message,direct_mention', function(bot, message) {
+  // explicit location? e.g. work is in Oakland
+  var match = message.text.match(/(\w+) is in (.+)/i);
+  if (match) {
+    var locationName = match[1];
+    var location = match[2];
+    saveLocation(controller, message.user, locationName, location, function(err) {
+      bot.reply(message, "Ok");
+    });
+    return;
+  }
+
+  var locationName1 = null,
+      locationName2 = null;
+
+  // set to current location?
+  if (match = message.text.match(/(\w+) is here/i)) {
+    locationName1 = match[1];
+    locationName2 = 'current';
+  } else if (match = message.text.match(/(\w+) is at (\w+)/i)) {
+    // named location? e.g. work is at home
+    locationName1 = match[1];
+    locationName2 = match[2];
+  }
+  if (locationName1 && locationName2) {
+    withLocation(controller, bot, message, locationName2,
+      function(location) {
+        saveLocation(controller, message.user, locationName1, location, function(err) {
+          bot.reply(message, "Ok, " + locationName1 + " is in " + location);
+        });
+      },
+      function() {
+        askLocation(controller, bot, message, locationName2, function(response, convo, location) {
+          saveLocation(controller, message.user, locationName1, location, function(err) {
+            bot.reply(message, "Ok, " + locationName1 + " and " + locationName2 + " are both in " + location);
+          });
+        });
+      }
+    );
+  }
+});
+
+/*
+ * Weather
+ */
+controller.hears(['weather'],'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  // explicit location? e.g. weather in San Francisco
   var match = message.text.match(/weather in (.+)/i);
   if (match) {
-    // location provided, use and save it
-    sayWeather(bot, message, match[1], true);
-  } else {
-    match = message.text.match(/weather here/i);
-    if (match) {
-      // ask location, use and save it
-      askWeatherLocation(bot, message);
-    } else {
-      // location not provided, try looking up last saved location
-      controller.storage.users.get(message.user,function(err,user) {
-        if (user && user.weather_location) {
-          sayWeather(bot, message, user.weather_location, false);
-        } else {
-          askWeatherLocation(bot, message);
-        }
-      });
-    }
+    sayWeather(bot, message, match[1]);
+    return;
   }
+
+  // set and save current location?
+  match = message.text.match(/weather here/i);
+  if (match) {
+    askLocationAndSayWeather(controller, bot, message, 'current');
+    return;
+  }
+
+  // named location? e.g. weather at work
+  var locationName;
+  match = message.text.match(/weather at (\w+)/i);
+  if (match) {
+    locationName = match[1];
+  } else {
+    locationName = 'current';
+  }
+  withLocation(controller, bot, message, locationName,
+    function(location) {
+      sayWeather(bot, message, location);
+    },
+    function() {
+      askLocationAndSayWeather(controller, bot, message, locationName);
+  });
 });
 
 
@@ -142,6 +263,31 @@ controller.hears(['uptime','identify yourself','who are you','what is your name'
 
 /* Helper functions. TODO: Move into a separate file. */
 
+function saveForUser(controller, userId, data, callback)
+{
+  controller.storage.users.get(userId, function(err, user) {
+    if (!user) {
+      user = {
+        id: userId,
+      }
+    }
+    user = extend(true, user, data);
+    controller.storage.users.save(user, function(err, id) {
+      if (callback) {
+        callback(err);
+      }
+    });
+  });
+}
+
+function saveForUserBucket(controller, userId, bucket, key, val, callback)
+{
+  var data = {};
+  data[bucket] = {};
+  data[bucket][key] = val;
+  saveForUser(controller, userId, data, callback);
+}
+
 function ask(bot, message, question, replyCallback)
 {
   bot.startConversation(message, function(err, convo) {
@@ -152,19 +298,47 @@ function ask(bot, message, question, replyCallback)
   });
 }
 
-function sayWeather(bot, message, location, saveLocation)
-{
-  if (saveLocation) {
-    controller.storage.users.get(message.user,function(err,user) {
-      if (!user) {
-        user = {
-          id: message.user,
-        }
-      }
-      user.weather_location = location;
-      controller.storage.users.save(user);
+function askLocation(controller, bot, message, savedLocationName, replyCallback) {
+  var question = (savedLocationName == 'current' ? 'Where are you?' : 'Where is ' + savedLocationName + '?');
+  ask(bot, message, question, function(response, convo) {
+    location = response.text;
+    saveLocation(controller, message.user, savedLocationName, location, function(err) {
+      replyCallback(response, convo, location);
     });
-  }
+  });
+}
+
+function withLocation(controller, bot, message, locationName, callbackWithLocation, callbackWithoutLocation)
+{
+  controller.storage.users.get(message.user, function(err, user) {
+    if (user && user.location && user.location[locationName]) {
+      callbackWithLocation(user.location[locationName]);
+    } else {
+      callbackWithoutLocation();
+    }
+  });
+}
+
+function saveLocation(controller, userId, locationName, location, callback)
+{
+  saveForUserBucket(controller, userId, 'location', locationName, location, callback);
+}
+
+function askLocationAndSayOk(controller, bot, message, savedLocationName)
+{
+  askLocation(controller, bot, message, savedLocationName, function(response, convo, location) {
+    bot.reply(response, "Ok");
+  });
+}
+function askLocationAndSayWeather(controller, bot, message, savedLocationName)
+{
+  askLocation(controller, bot, message, savedLocationName, function(response, convo, location) {
+    sayWeather(bot, response, location);
+  });
+}
+
+function sayWeather(bot, message, location)
+{
   weather.find({search: location, degreeType: 'F'}, function(err, result) {
     if (result && result.length > 0) {
       var location = result[0].location;
@@ -173,17 +347,10 @@ function sayWeather(bot, message, location, saveLocation)
       var tomorrow = result[0].forecast[1];
       var todayPrecip = today.precip || "0";
       var tomorrowPrecip = tomorrow.precip || "0";
-      bot.reply(message, "Currently " + current.temperature + "° in " + location.name + ", forecast " + today.skytextday + " with high of " + today.high + "° and " + todayPrecip + "% chance of rain today. Tomorrow " + tomorrow.skytextday + " with high of " + tomorrow.high + "° and " + tomorrowPrecip + "% chance of rain.");
+      bot.reply(message, "Currently " + current.temperature + "° in " + location.name + ", forecast " + today.skytextday + " with high of " + today.high + "° and " + todayPrecip + "% chance of precip today. Tomorrow " + tomorrow.skytextday + " with high of " + tomorrow.high + "° and " + tomorrowPrecip + "% chance of precip.");
     } else {
       bot.reply(message, "I couldn't get the weather for " + location);
     }
-  });
-}
-
-function askWeatherLocation(bot, message)
-{
-  ask(bot, message, "Where are you?", function(response, convo) {
-    sayWeather(bot, response, response.text, true);
   });
 }
 
