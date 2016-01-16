@@ -64,7 +64,7 @@ controller.hears(['what time is it'],'direct_message,direct_mention,mention',fun
 controller.hears(['where is .+','where am i'], 'direct_message,direct_mention,mention', function(bot, message) {
   var locationName = null;
 
-  var match = message.text.match(/where is (.+)/i);
+  var match = message.text.match(/where is (\w+)/i);
   if (match) {
     locationName = match[1];
   } else if (message.text.match(/where am i/i)) {
@@ -104,7 +104,7 @@ controller.hears(['i am (in|at) .+'], 'direct_message,direct_mention', function(
   }
 
   // named location? e.g. i'm at work
-  match = message.text.match(/i am at (.+)/i);
+  match = message.text.match(/i am at (\w+)/i);
   if (match) {
     var locationName = match[1];
     withLocation(controller, bot, message, locationName,
@@ -124,7 +124,7 @@ controller.hears(['i am (in|at) .+'], 'direct_message,direct_mention', function(
  */
 controller.hears(['.+ is (in|at) .+','.+ is here'], 'direct_message,direct_mention', function(bot, message) {
   // explicit location? e.g. work is in Oakland
-  var match = message.text.match(/(.+) is in (.+)/i);
+  var match = message.text.match(/(\w+) is in (.+)/i);
   if (match) {
     var locationName = match[1];
     var location = match[2];
@@ -138,10 +138,10 @@ controller.hears(['.+ is (in|at) .+','.+ is here'], 'direct_message,direct_menti
       locationName2 = null;
 
   // set to current location?
-  if (match = message.text.match(/(.+) is here/i)) {
+  if (match = message.text.match(/(\w+) is here/i)) {
     locationName1 = match[1];
     locationName2 = 'current';
-  } else if (match = message.text.match(/(.+) is at (.+)/i)) {
+  } else if (match = message.text.match(/(\w+) is at (\w+)/i)) {
     // named location? e.g. work is at home
     locationName1 = match[1];
     locationName2 = match[2];
@@ -184,7 +184,7 @@ controller.hears(['weather'],'direct_message,direct_mention,mention,ambient', fu
 
   // named location? e.g. weather at work
   var locationName;
-  match = message.text.match(/weather at (.+)/i);
+  match = message.text.match(/weather at (\w+)/i);
   if (match) {
     locationName = match[1];
   } else {
