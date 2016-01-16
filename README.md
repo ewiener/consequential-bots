@@ -65,11 +65,25 @@ Try:
 
 I know about:
 
-1) Weather
+1) Your location
 
-  - "weather in cityname"
-  - "weather" (I'll use the last location)
-  - "weather here" (I'll ask where you are)
+  - `i am in Berkeley`
+  - `where am i`
+
+2) Symbolic locations
+
+  - `home is in Berkeley`
+  - `work is in Oakland`
+  - `where is work`
+  - `i am at work`
+  - `work is at home`
+
+3) Weather
+
+  - `weather` (I'll use your current location)
+  - `weather in San Francisco`
+  - `weather at work`
+  - `weather here` (I'll ask where you are)
 
 ## What's Next
 
