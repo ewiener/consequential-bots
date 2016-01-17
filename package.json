@@ -4,7 +4,10 @@
     "botkit": "0.0.5",
     "dotenv": "^1.2.0",
     "extend": "^3.0.0",
-    "weather-js": "^1.0.2"
+    "moment": "^2.11.1",
+    "request": "^2.67.0",
+    "weather-js": "^1.0.2",
+    "wolfram-alpha": "^0.3.0"
   },
   "engines": {
     "node": "0.12.2"

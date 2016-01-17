@@ -10,6 +10,8 @@ var weather = require('weather-js');
 var os = require('os');
 var util = require('./lib/util');
 var extend = require('extend');
+var request = require('request');
+var moment = require('moment');
 
 var BOTNAME = 'macncheese';
 
@@ -26,37 +28,26 @@ var bot = controller.spawn({
  *** Start bot routes
  ***/
 
-controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
-  bot.api.reactions.add({
-    timestamp: message.ts,
-    channel: message.channel,
-    name: 'robot_face',
-  },function(err,res) {
-    if (err) {
-      bot.botkit.log("Failed to add emoji reaction :(",err);
-    }
-  });
-
-  controller.storage.users.get(message.user,function(err,user) {
-    if (user && user.name) {
-      bot.reply(message,"Hello " + user.name+"!!");
-    } else {
-      bot.reply(message,"Hello.");
-    }
-  });
+controller.hears(['test .*'],'direct_message', function(bot, message) {
+  bot.botkit.log(message.text);
 });
-
 
 controller.hears(['what is your favorite color'],'direct_message,direct_mention,mention',function(bot,message) {
   bot.reply(message,"pink");
 });
-
 
 controller.hears(['what time is it'],'direct_message,direct_mention,mention',function(bot,message) {
   var now = new Date();
   bot.reply(message, now.getHours() + ":" + now.getMinutes());
 });
 
+controller.hears(['meet <@U.+>'],'direct_message,direct_mention',function(bot,message) {
+  var match = message.text.match(/meet (<@U\w+>)/i);
+  if (match) {
+    var user = match[1];
+    bot.reply(message, "Hi " + user);
+  }
+});
 
 /*
  * Get current or another location
@@ -196,9 +187,94 @@ controller.hears(['weather'],'direct_message,direct_mention,mention,ambient', fu
     },
     function() {
       askLocationAndSayWeather(controller, bot, message, locationName);
-  });
+    }
+  );
 });
 
+/*
+ * XboxLive
+ */
+controller.hears(['xbox msg .+'],'direct_message', function(bot, message) {
+  var match = message.text.match(/xbox msg (\w+) (.+)/i);
+  if (match) {
+    var gamerTag = match[1];
+    var msg = match[2];
+
+    withXuid(controller, bot, message, gamerTag,
+      function(xuid) {
+        xboxSendMessage(xuid, msg, function(err, result) {
+          if (err) {
+            bot.reply(message, "Hmmm, got error " + err + " when sending message to " + gamerTag);
+          }
+        });
+      },
+      function() {
+        sayXboxFriends(controller, bot, message, process.env.XBOX_DEFAULT_XUID, "I don't know " + gamerTag + ". This is who I know: ");
+      }
+    );
+  }
+});
+controller.hears(['xbox messages'],'direct_message', function(bot, message) {
+  sayXboxMessages(controller, bot, message);
+});
+controller.hears(['xbox status'],'direct_message', function(bot, message) {
+  var match = message.text.match(/xbox status (\w+)/i);
+  if (match) {
+    var gamerTag = match[1];
+
+    withXuid(controller, bot, message, gamerTag,
+      function(xuid) {
+        sayXboxStatus(controller, bot, message, gamerTag, xuid);
+      },
+      function() {
+        sayXboxFriends(controller, bot, message, process.env.XBOX_DEFAULT_XUID, "I don't know " + gamerTag + ". This is who I know: ");
+      }
+    );
+  } else {
+    sayXboxStatus(controller, bot, message, process.env.XBOX_DEFAULT_GAMERTAG, process.env.XBOX_DEFAULT_XUID);
+  }
+});
+controller.hears(['xbox friends'],'direct_message', function(bot, message) {
+  var match = message.text.match(/xbox friends (\w+)/i);
+  if (match) {
+    var gamerTag = match[1];
+
+    withXuid(controller, bot, message, gamerTag,
+      function(xuid) {
+        sayXboxFriends(controller, bot, message, gamerTag, xuid);
+      },
+      function() {
+        sayXboxFriends(controller, bot, message, process.env.XBOX_DEFAULT_XUID, "I don't know " + gamerTag + ". This is who I know: ");
+      }
+    );
+  } else {
+    sayXboxFriends(controller, bot, message, process.env.XBOX_DEFAULT_XUID);
+  }
+});
+controller.hears(['xbox'],'direct_message', function(bot, message) {
+  bot.reply(message, "I can:\n- send a message `msg GamerTag text`\n-check messages `messages`\n-check status `status [GamerTag]`\n-lookup friends `friends [GamerTag]`")
+});
+
+
+controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
+  bot.api.reactions.add({
+    timestamp: message.ts,
+    channel: message.channel,
+    name: 'robot_face',
+  },function(err,res) {
+    if (err) {
+      bot.botkit.log("Failed to add emoji reaction :(",err);
+    }
+  });
+
+  controller.storage.users.get(message.user,function(err,user) {
+    if (user && user.name) {
+      bot.reply(message,"Hello " + user.name+"!!");
+    } else {
+      bot.reply(message,"Hello.");
+    }
+  });
+});
 
 controller.hears(['call me (.*)'],'direct_message,direct_mention,mention',function(bot,message) {
   var matches = message.text.match(/call me (.*)/i);
@@ -350,6 +426,183 @@ function sayWeather(bot, message, location)
       bot.reply(message, "Currently " + current.temperature + "° in " + location.name + ", forecast " + today.skytextday + " with high of " + today.high + "° and " + todayPrecip + "% chance of precip today. Tomorrow " + tomorrow.skytextday + " with high of " + tomorrow.high + "° and " + tomorrowPrecip + "% chance of precip.");
     } else {
       bot.reply(message, "I couldn't get the weather for " + location);
+    }
+  });
+}
+
+function xboxStatus(xuid, callback)
+{
+  request.get({
+    url: 'https://xboxapi.com/v2/' + xuid + '/presence',
+    headers: {
+      "X-AUTH": process.env.XBOX_API_KEY,
+      json: true
+    },
+  }, function (error, response, body) {
+    if (error) {
+      callback(error, null);
+    } else if (response.statusCode != 200) {
+      callback(response.statusCode, null);
+    } else {
+      body = JSON.parse(body);
+      console.log(JSON.stringify(body));
+      if (body.state == "Online") {
+        var activeTitle = body.devices[0].titles.find(function(e) {
+          return e.state = "Active";
+        });
+        var activeGame = activeTitle ? activeTitle.name : null;
+        var activeTime = activeTitle ? activeTitle.lastModified : null;
+        callback(null, {
+          status: body.state,
+          activeGame: activeGame,
+          activeTime: activeTime,
+        });
+      } else {
+        callback(null, {
+          status: body.state,
+          lastGame: body.lastSeen.titleName,
+          lastTime: body.lastSeen.timestamp
+        });
+      }
+    }
+  });
+}
+
+function xboxMessages(callback)
+{
+  request.get({
+    url: 'https://xboxapi.com/v2/messages',
+    headers: {
+      "X-AUTH": process.env.XBOX_API_KEY,
+      json: true
+    },
+  }, function (error, response, body) {
+    if (error) {
+      callback(error, null);
+    } else if (response.statusCode != 200) {
+      callback(response.statusCode, null);
+    } else {
+      body = JSON.parse(body);
+      console.log(JSON.stringify(body));
+      var messages = body.map(function(e) {
+        return {
+          sent: e.header.sent,
+          from: e.header.sender,
+          text: e.messageSummary
+        };
+      });
+      callback(null, messages);
+    }
+  });
+}
+
+function xboxSendMessage(xuid, msg, callback)
+{
+  request.post({
+    url: 'https://xboxapi.com/v2/messages',
+    headers: {
+      "X-AUTH": process.env.XBOX_API_KEY
+    },
+    json: true,
+    body: {
+      to: [ xuid ],
+      message: msg,
+    }
+  }, function (error, response, body) {
+    if (error) {
+      callback(error, null);
+    } else if (response.statusCode != 200) {
+      callback(response.statusCode, null);
+    } else {
+      callback(null, body);
+    }
+  });
+}
+
+function xboxFriends(xuid, callback)
+{
+  request.get({
+    url: 'https://xboxapi.com/v2/' + xuid + '/friends',
+    headers: {
+      "X-AUTH": process.env.XBOX_API_KEY
+    },
+    json: true
+  }, function (error, response, body) {
+    if (error) {
+      callback(error, null);
+    } else if (response.statusCode != 200) {
+      callback(response.statusCode, null);
+    } else {
+      var friends = body.map(function(e) {
+        return {
+          xuid: e.id,
+          gamerTag: e.Gamertag
+        };
+      });
+      callback(null, friends);
+    }
+  });
+}
+
+function sayXboxStatus(controller, bot, message, gamerTag, xuid)
+{
+  xboxStatus(xuid, function(err, result) {
+    if (result) {
+      if (result.status == "Online") {
+        bot.reply(message, gamerTag + " is online. Currently playing " + result.activeGame + ", started " + moment(result.activeTime).fromNow() + ".");
+      } else {
+        bot.reply(message, gamerTag + " is offline. Last played " + result.lastGame + " " + moment(result.lastTime).fromNow() + ".");
+      }
+    } else if (err) {
+      bot.reply(message, "Hmmm, got error " + err + " when checking status of " + gamerTag);
+    }
+  });
+}
+
+function sayXboxMessages(controller, bot, message)
+{
+  xboxMessages(function(err, messages) {
+    if (messages) {
+      var text = messages.reduce(function(text, message) {
+        var msgText =message.sent + " from " + message.from + ": " + message.text;
+        return (text.length > 0) ? text + "\n" + msgText : msgText;
+      }, "");
+      bot.reply(message, text);
+    } else if (err) {
+      bot.reply(message, "Hmmm, got error " + err + " when checking messages");
+    }
+  });
+}
+
+function sayXboxFriends(controller, bot, message, xuid, prefix)
+{
+  xboxFriends(xuid, function(err, friends) {
+    if (friends) {
+      // save to stored friend list
+      var friendMap = friends.reduce(function(map, friend) {
+        map[friend.gamerTag] = friend.xuid;
+        return map;
+      }, {});
+      saveForUser(controller, message.user, { xboxFriends: friendMap });
+
+      var list = friends.reduce(function(list, friend) {
+        return (list.length > 0) ? list + ", " + friend.gamerTag : friend.gamerTag;
+      }, "");
+      var text = prefix ? prefix + list : list;
+      bot.reply(message, text);
+    } else if (err) {
+      bot.reply(message, "Hmmm, got error " + err + " when looking up friends");
+    }
+  });
+}
+
+function withXuid(controller, bot, message, gamerTag, callbackWithXuid, callbackWithoutXuid)
+{
+  controller.storage.users.get(message.user, function(err, user) {
+    if (user && user.xboxFriends && user.xboxFriends[gamerTag]) {
+      callbackWithXuid(user.xboxFriends[gamerTag]);
+    } else {
+      callbackWithoutXuid();
     }
   });
 }

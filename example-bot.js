@@ -1,7 +1,7 @@
 /*
  * Example bot, based on Botkit sample bot.
  *
- * Copy this file to create your own bot. Replace <YOUR_BOT_NAME> and <your_bot_name> below with your bot's name.
+ * Copy this file to create your own bot. Set BOTNAME below to your bot's name.
  * Add the following to .env in this directory:
  *   SLACK_TOKEN_YOUR_BOT_NAME=<your_bot_slack_token>
  */
