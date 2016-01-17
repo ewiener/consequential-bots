@@ -12,6 +12,7 @@ var util = require('./lib/util');
 var extend = require('extend');
 var request = require('request');
 var moment = require('moment');
+require('es6-shim');
 
 var BOTNAME = 'macncheese';
 
@@ -448,7 +449,7 @@ function xboxStatus(xuid, callback)
       console.log(JSON.stringify(body));
       if (body.state == "Online") {
         var activeTitle = body.devices[0].titles.find(function(e) {
-          return e.state = "Active";
+          return e.state == "Active" && e.placement == "Full";
         });
         var activeGame = activeTitle ? activeTitle.name : null;
         var activeTime = activeTitle ? activeTitle.lastModified : null;
@@ -549,7 +550,7 @@ function sayXboxStatus(controller, bot, message, gamerTag, xuid)
   xboxStatus(xuid, function(err, result) {
     if (result) {
       if (result.status == "Online") {
-        bot.reply(message, gamerTag + " is online. Currently playing " + result.activeGame + ", started " + moment(result.activeTime).fromNow() + ".");
+        bot.reply(message, gamerTag + " is online. Playing " + result.activeGame + " as of " + moment(result.activeTime).fromNow() + ".");
       } else {
         bot.reply(message, gamerTag + " is offline. Last played " + result.lastGame + " " + moment(result.lastTime).fromNow() + ".");
       }
