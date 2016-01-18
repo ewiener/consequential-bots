@@ -85,6 +85,3 @@ I know about:
   - `weather at work`
   - `weather here` (I'll ask where you are)
 
-## What's Next
-
-1) Deploy to heroku to keep the bots alive.
