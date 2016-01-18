@@ -1,1 +1,1 @@
-bot: start.js
+bot: node start.js
