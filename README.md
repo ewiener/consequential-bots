@@ -85,3 +85,9 @@ I know about:
   - `weather at work`
   - `weather here` (I'll ask where you are)
 
+4) XboxLive
+
+  - `xbox friends [gamertag]`
+  - `xbox status [gamertag]`
+  - `xbox msg gamertag message...`
+  - `xbox messages`
