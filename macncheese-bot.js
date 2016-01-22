@@ -256,6 +256,20 @@ controller.hears(['xbox'],'direct_message', function(bot, message) {
   bot.reply(message, "I can:\n- send a message `msg GamerTag text`\n-check messages `messages`\n-check status `status [GamerTag]`\n-lookup friends `friends [GamerTag]`")
 });
 
+/*
+ * Flights
+ */
+controller.hears(['flight .+'],'direct_message,direct_mention,mention', function(bot, message) {
+  var match = message.text.match(/flight (\w+) (\w+) ([\w\-]+)/i);
+  if (match) {
+    var origin = match[1];
+    var destination = match[2];
+    var date = match[3];
+
+    sayFlights(controller, bot, message, origin, destination, date);
+  }
+});
+
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
   bot.api.reactions.add({
@@ -607,4 +621,111 @@ function withXuid(controller, bot, message, gamerTag, callbackWithXuid, callback
     }
   });
 }
+
+/** ITA **/
+
+function qpxFlights(origin, destination, date, callback)
+{
+  request.post({
+    url: 'https://www.googleapis.com/qpxExpress/v1/trips/search?key=' + process.env.GOOGLE_QPX_API_KEY,
+    json: true,
+    body: {
+      "request": {
+        "passengers": {
+          "kind": "qpxexpress#passengerCounts",
+          "adultCount": 1,
+          "childCount": 0,
+          "infantInLapCount": 0,
+          "infantInSeatCount": 0,
+          "seniorCount": 0
+        },
+        "slice": [
+          {
+            "kind": "qpxexpress#sliceInput",
+            "origin": origin,
+            "destination": destination,
+            "date": date,
+            "maxStops": 1,
+            "maxConnectionDuration": 120,
+            "preferredCabin": "COACH",
+            "permittedDepartureTime": {
+              "kind": "qpxexpress#timeOfDayRange",
+              "earliestTime": "06:00",
+              "latestTime": "20:00"
+            }
+          }
+        ],
+        "saleCountry": "US",
+        "refundable": false,
+        "solutions": 3
+      }
+    }
+  }, function (error, response, body) {
+    if (error) {
+      callback(error, null);
+    } else if (response.statusCode != 200) {
+      callback(response.statusCode + ": " + JSON.stringify(body), null);
+    } else {
+      flights = body.trips.tripOption.map(function(tripOption) {
+        return {
+          price: tripOption.saleTotal,
+          segments: flatten(tripOption.slice.map(function(slice) {
+            return slice.segment.map(function(segment) {
+              return segment.leg.map(function(leg) {
+                return {
+                  airline: segment.flight.carrier,
+                  flight: segment.flight.number,
+                  cabin: segment.cabin,
+                  origin: leg.origin,
+                  departureTime: leg.departureTime,
+                  destination: leg.destination,
+                  arrivalTime: leg.arrivalTime,
+                  duration: leg.duration
+                };
+              });
+            })
+          }))
+        };
+      });
+      callback(null, flights);
+    }
+  });
+}
+
+function flatten(ary) {
+    var ret = [];
+    for(var i = 0; i < ary.length; i++) {
+        if(Array.isArray(ary[i])) {
+            ret = ret.concat(flatten(ary[i]));
+        } else {
+            ret.push(ary[i]);
+        }
+    }
+    return ret;
+}
+
+function qpxFlightToString(flight)
+{
+  return flight.price + ":\n" +
+    flight.segments.map(function(segment) {
+      return "    Airline " + segment.airline + " Depart " + segment.origin + " " + segment.departureTime + " Arrive " + segment.destination + " " + segment.arrivalTime + " (" + segment.duration + " minutes)";
+    }).reduce(function(fullDescription, segmentDescription) {
+      return fullDescription.length > 0 ? fullDescription + "\n" + segmentDescription : segmentDescription;
+    }, "");
+}
+
+function sayFlights(controller, bot, message, origin, destination, date)
+{
+  qpxFlights(origin, destination, date, function(error, flights) {
+    if (error) {
+      bot.reply(message, "Sorry, got error when searching flights: " + error);
+    } else {
+      flights.forEach(function(flight, i) {
+        bot.reply(message, "Option " + (i+1) + ": " + qpxFlightToString(flight));
+      });
+    }
+  });
+}
+
+
 
