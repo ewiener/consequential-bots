@@ -85,6 +85,9 @@ I know about:
   - `weather at work`
   - `weather here` (I'll ask where you are)
 
-## What's Next
+4) XboxLive
 
-1) Deploy to heroku to keep the bots alive.
+  - `xbox friends [gamertag]`
+  - `xbox status [gamertag]`
+  - `xbox msg gamertag message...`
+  - `xbox messages`
